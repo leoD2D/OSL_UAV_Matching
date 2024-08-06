@@ -4,15 +4,15 @@ import copy
 
 class unmannedAerialVehicle:
 
-    def __init__(self, index, mode):
+    def __init__(self, index, xPositionUAV, yPositionUAV, cpuFrequencyMaxUAV, mode):
         self.mode = mode
         self.index = index
-        self.xPositionUAV = int(np.random.uniform(0,100))
-        self.yPositionUAV = int(np.random.uniform(0,100))
-        self.cpuFrequencyMaxUAV = int(np.random.uniform(10, 30) * 10**9)   #30 GHz
-        self.bandwidthMaxUAV = int(np.random.uniform(1 ,2 )* 10**6)     # 2 MHz
-        self.ownSensingTaskSizeUAV =int(np.random.uniform(1 ,3) * 10**6)    # 2 MHZ
-        self.ownSensingTaskComplexityUAV =int(np.random.uniform(2000, 10000))
+        self.xPositionUAV = xPositionUAV
+        self.yPositionUAV = yPositionUAV
+        self.cpuFrequencyMaxUAV = cpuFrequencyMaxUAV
+        self.bandwidthMaxUAV = int(np.random.uniform(1.5 ,2 )* 10**6)     # 2 MHz
+        self.ownSensingTaskSizeUAV = int(np.random.uniform(1 ,10) * 10**6)    # 2 MHZ
+        self.ownSensingTaskComplexityUAV = int(np.random.uniform(500, 2000))
         self.penalty = -1
         self.reward = 1
         self.beta = {}
@@ -55,7 +55,7 @@ class unmannedAerialVehicle:
 
             if marginalUtilityForGDs is None or marginalUtilityForGDs.size == 0:
                 marginalUtilityForGDs = 0
-            # print(f"The marginal Utility is real {marginalUtilityForGDs} with t_saved = {t_saved} and t_extra = {t_extra}")
+            print(f"The marginal Utility is real {marginalUtilityForGDs} with t_saved = {t_saved} and t_extra = {t_extra}")
 
         return marginalUtilityForGDs
 

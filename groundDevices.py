@@ -3,18 +3,19 @@ import copy
 import random
 
 class groundDevices:
-    def __init__(self, index, mode):
+
+    def __init__(self, index, xPositionGD, yPositionGD, mode):
         self.mode = mode
         self.index = index
-        self.xPositionGD = int(np.random.uniform(0,100))
-        self.yPositionGD = int(np.random.uniform(0,100))
-        self.cpuFrequencyGD =int(np.random.uniform(1,2)) *10**(9)
-        self.taskSizeGD =int(np.random.uniform(1,5)) * 10**6    #1 Mbit
-        self.taskComplexityGD =int(np.random.uniform(2000,10000))
-        self.transPower = 0.1   # 100 mW
-        self.noise = 10.0 ** (-90 / 10.0)*0.001       # -90 dBm
+        self.xPositionGD = xPositionGD
+        self.yPositionGD = yPositionGD
+        self.cpuFrequencyGD = 2 * 10 ** (9)
+        self.taskSizeGD = int(np.random.uniform(1,5)) * 10**6    #1 Mbit
+        self.taskComplexityGD = int(np.random.uniform(2000,10000))
+        self.transPower = 0.1  # 100 mW
+        self.noise = 10.0 ** (-90 / 10.0) * 0.001  # -90 dBm
 
-        self.alpha_ssp = 0.01         #step-size parameter alpha >= 0
+        self.alpha_ssp = 0.1  # step-size parameter alpha >= 0
         self.possibleUAVs = []
         self.probFailedConnection = {}
         self.preferenceOfUAVsToPropose = {}
@@ -36,6 +37,13 @@ class groundDevices:
         self.y = 0
 
 
+        self.possibleUAVsRAM =[]
+        self.preferenceListUAVsRAM = {}
+        self.chosenUAVtoProposeRAM = None
+        self.matchedUAVRAM=[]
+        self.utilityRAM = 0
+
+
 
 
 
@@ -45,10 +53,10 @@ class groundDevices:
         # print(self.possibleUAVs)
         self.preferenceOfUAVsToPropose = {'No Proposal':0}
         self.preferenceOfUAVsToPropose.update({UAV.index: 0 for UAV in listOfUAVs})
-        #print(self.preferenceOfUAVsToPropose)
+        print(self.preferenceOfUAVsToPropose)
         self.probabilityOfUAVsToPropose = {'No Proposal': 0}
         self.probabilityOfUAVsToPropose.update({UAV.index: 0 for UAV in listOfUAVs})
-        #print(self.probabilityOfUAVsToPropose)
+        print(self.probabilityOfUAVsToPropose)
 
     def chooseUAVtoPropose(self, listOfUAVs):
         listOfUAVs = copy.deepcopy(listOfUAVs)
@@ -71,12 +79,12 @@ class groundDevices:
             self.provideInformationToUAV(self.chosenUAVtoPropose, listOfUAVs)
             return self.chosenUAVtoPropose
 
-        if self.mode == 'UAVsOnlyMatching':
+        if self.mode == 'RandomMatching':
             self.chosenUAVtoPropose = random.choice(self.possibleUAVs)
             self.provideInformationToUAV(self.chosenUAVtoPropose, listOfUAVs)
             return self.chosenUAVtoPropose
 
-        if self.mode == 'ChannelGainBasedMatching':
+        if self.mode == 'GreedyMatching':
             channelGains = {}
             for UAV in listOfUAVs:
                 distanceToUAV = np.sqrt(
@@ -140,6 +148,7 @@ class groundDevices:
 
             if counterNotAccepted == len(listOfUAVs):       #Case 3: The GD proposed to a UAV but did not get accepted
                 self.rewardInTimestepGD = 0
+
                 self.preferenceOfUAVsToPropose['No Proposal'] = self.preferenceOfUAVsToPropose['No Proposal'] - self.alpha_ssp * (self.rewardInTimestepGD - self.averageRewardGD) * (self.probabilityOfUAVsToPropose['No Proposal'])
                 for UAV in listOfUAVs:
                     if UAV.index == self.chosenUAVtoPropose:
@@ -153,7 +162,7 @@ class groundDevices:
         #print(f"Updated UAV-Preferences of {self.index} are: {self.preferenceOfUAVsToPropose} ")
         return self.rewardInTimestepGD
 
-    def unmatchUAVfromGD(self):
+    def unmatchUAVfromGD(self, listOfUAVs):
         self.chosenUAVtoPropose = None
 
         self.distance = 0
@@ -169,6 +178,28 @@ class groundDevices:
 
 
 
+    def initializeGDRAM(self, listOfUAVs):
+        self.possibleUAVsRAM.extend(UAV.index for UAV in listOfUAVs)
+        self.preferenceListUAVsRAM = {}
+        self.matchedUAVRAM = []
+        self.utilityRAM = 0
 
-
-
+    def createPreferenceListRAM(self, listOfUAVs, listOfPossibleUAVs):
+        self.timeLocalGD = self.taskSizeGD * self.taskComplexityGD / self.cpuFrequencyGD
+        for UAV in listOfUAVs:
+            if UAV.index in listOfPossibleUAVs:
+                self.distance = np.sqrt(
+                    (self.xPositionGD - UAV.xPositionUAV) ** 2 + (self.yPositionGD - UAV.yPositionUAV) ** 2)
+                if self.distance < 2:
+                    self.distance = 2
+                self.channelGain = self.distance ** (-4)
+                cpuFreq = UAV.cpuFrequencyMaxUAV
+                bandwidth = UAV.bandwidthMaxUAV
+                t_extra = UAV.ownSensingTaskSizeUAV * UAV.ownSensingTaskComplexityUAV * (1 / cpuFreq - 1 / UAV.cpuFrequencyMaxUAV)
+                t_local = self.timeLocalGD
+                channelRate = bandwidth * np.log(1 + ((self.channelGain * self.transPower) / (bandwidth * self.noise)))
+                # print('channel rate:', channelRate)
+                t_comm = self.taskSizeGD / channelRate
+                t_comp = self.taskSizeGD * self.taskComplexityGD / cpuFreq
+                t_saved = (t_local - t_comp - t_comm)
+                self.preferenceListUAVsRAM.update({UAV.index: t_saved})

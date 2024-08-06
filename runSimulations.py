@@ -2,37 +2,62 @@ import numpy as np
 import matplotlib.pyplot as plt
 import enviornment as env
 
+
+
 def run_simulation(monteCarloRunID, T):
     print('Monte Carlo ID:', monteCarloRunID)
 
-    numberOfGDs = 15
-    numberOfUAVs = 4
+    numberOfGDs = 5
+    numberOfUAVs = 2
+    xPositionGD = []
+    yPositionGD = []
+    xPositionUAV = []
+    yPositionUAV = []
+    cpuFrequencyMaxUAV = []
+    for ii in range(numberOfGDs):
+        xPositionGD.append(int(np.random.uniform(0, 50)))
+        yPositionGD.append(int(np.random.uniform(0, 50)))
+    for ii in range(numberOfUAVs):
+        xPositionUAV.append(int(np.random.uniform(0, 50)))
+        yPositionUAV.append(int(np.random.uniform(0, 50)))
+        cpuFrequencyMaxUAV.append(int(np.random.uniform(1, 20) * 10 ** 9))
 
+    enviornmentOneSidedLearning = env.Environment(numberOfUAVs, numberOfGDs, xPositionGD, yPositionGD, xPositionUAV, yPositionUAV, cpuFrequencyMaxUAV, mode='oneSidedLearning')
+    enviornmentRandom = env.Environment(numberOfUAVs, numberOfGDs, xPositionGD, yPositionGD, xPositionUAV, yPositionUAV, cpuFrequencyMaxUAV, mode='RandomMatching')
+    enviornmentGreedy = env.Environment(numberOfUAVs, numberOfGDs, xPositionGD, yPositionGD, xPositionUAV, yPositionUAV, cpuFrequencyMaxUAV, mode='GreedyMatching')
+    enviornmentOptimalBenchmark = env.Environment(numberOfUAVs, numberOfGDs, xPositionGD, yPositionGD, xPositionUAV, yPositionUAV, cpuFrequencyMaxUAV, mode='OptimalBenchmark')
 
-    enviornmentOneSidedLearning = env.Environment(numberOfUAVs, numberOfGDs, mode='oneSidedLearning')
-    enviornmentUAVsOnly = env.Environment(numberOfUAVs, numberOfGDs, mode='UAVsOnlyMatching')
-    enviornmentChannelGainBased = env.Environment(numberOfUAVs, numberOfGDs, mode='ChannelGainBasedMatching')
     for t in range(T):
         enviornmentOneSidedLearning.nextStep()
-        enviornmentUAVsOnly.nextStep()
-        enviornmentChannelGainBased.nextStep()
-
+        enviornmentRandom.nextStep()
+        enviornmentGreedy.nextStep()
+        enviornmentOptimalBenchmark.resourceAllocationMatching()
 
     performanceOfGDsOSL = enviornmentOneSidedLearning.utilityOfGDs
-    performanceOfGDsUAVsOnly = enviornmentUAVsOnly.utilityOfGDs
-    performanceOfGDsChannelGainBased = enviornmentChannelGainBased.utilityOfGDs
+    performanceOfGDsRandom = enviornmentRandom.utilityOfGDs
+    performanceOfGDsGreedy = enviornmentGreedy.utilityOfGDs
+    performanceOfGDsOptimalBenchmark = enviornmentOptimalBenchmark.utilityOfGDs
+
     performanceOfUAVsOSL = enviornmentOneSidedLearning.utilityOfUAVs
-    performanceOfUAVsUAVsOnly = enviornmentUAVsOnly.utilityOfUAVs
-    performanceOfUAVsChannelGainBased = enviornmentChannelGainBased.utilityOfUAVs
+    performanceOfUAVsRandom = enviornmentRandom.utilityOfUAVs
+    performanceOfUAVsGreedy = enviornmentGreedy.utilityOfUAVs
+    performanceOfUAVsOptimalBenchmark = enviornmentOptimalBenchmark.utilityOfUAVs
 
+    print(f"Utility of GDs in OSL: {performanceOfGDsOSL}")
+    print(f"Utility of GDs in Random: {performanceOfGDsRandom}")
+    print(f"Utility of GDs in Greedy: {performanceOfGDsGreedy}")
+    print(f"Utility of GDs in OptimalBenchmark: {performanceOfGDsOptimalBenchmark}")
+    print('It works so far')
 
-    print(f"Utility of GDs in OSL: {enviornmentOneSidedLearning.utilityOfGDs}")
-    print(f"Utility of GDs in UAVsOnly: {enviornmentUAVsOnly.utilityOfGDs}")
-    print(f"Utility of GDs in ChannelGainBased: {enviornmentChannelGainBased.utilityOfGDs}")
-    print('it works so far')
+    return performanceOfGDsOSL, performanceOfGDsRandom, performanceOfGDsGreedy, performanceOfGDsOptimalBenchmark, performanceOfUAVsOSL, performanceOfUAVsRandom, performanceOfUAVsGreedy, performanceOfUAVsOptimalBenchmark
 
-    return performanceOfGDsOSL, performanceOfGDsUAVsOnly, performanceOfGDsChannelGainBased, performanceOfUAVsOSL, performanceOfUAVsUAVsOnly, performanceOfUAVsChannelGainBased
-
+def averageResults(performancePerRunDict, meanPerformanceDict):
+    for key in performancePerRunDict:
+        if performancePerRunDict[key]:
+            meanPerformanceDict[key] = np.mean(performancePerRunDict[key])
+        else:
+            meanPerformanceDict[key] = 0
+    return meanPerformanceDict
 
 if __name__ == "__main__":
     T = 200
@@ -40,101 +65,70 @@ if __name__ == "__main__":
     timesteps = list(range(T))
 
     performanceOfGDsInOSLperRun = {t: [] for t in range(1, T + 1)}
-    performanceOfGDsUAVsOnlyPerRun = {t: [] for t in range(1, T + 1)}
-    performanceOfGDsChannelGainBasedPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfGDsRandomPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfGDsGreedyPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfGDsOptimalBenchmarkPerRun = {t: [] for t in range(1, T + 1)}
 
     meanPerformanceGDsOSL = {t: 0 for t in range(1, T + 1)}
-    meanPerformanceGDsUAVsOnly = {t: 0 for t in range(1, T + 1)}
-    meanPerformanceGDsChannelGainBased = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceGDsRandom = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceGDsGreedy = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceGDsOptimalBenchmark = {t: 0 for t in range(1, T + 1)}
 
     performanceOfUAVsInOSLperRun = {t: [] for t in range(1, T + 1)}
-    performanceOfUAVsUAVsOnlyPerRun = {t: [] for t in range(1, T + 1)}
-    performanceOfUAVsChannelGainBasedPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfUAVsRandomPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfUAVsGreedyPerRun = {t: [] for t in range(1, T + 1)}
+    performanceOfUAVsOptimalBenchmarkPerRun = {t: [] for t in range(1, T + 1)}
 
     meanPerformanceUAVsOSL = {t: 0 for t in range(1, T + 1)}
-    meanPerformanceUAVsUAVsOnly = {t: 0 for t in range(1, T + 1)}
-    meanPerformanceUAVsChannelGainBased = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceUAVsRandom = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceUAVsGreedy = {t: 0 for t in range(1, T + 1)}
+    meanPerformanceUAVsOptimalBenchmark = {t: 0 for t in range(1, T + 1)}
 
-
-    # Lists to store the results
-    results_list = []
     for m in range(monteCarloRuns):
-        gd_osl, gd_UAVsOnly, gd_ChannelGainBased, uav_osl, uav_UAVsOnly, uav_ChannelGainBased = run_simulation(m,T)
+        gd_osl, gd_Random, gd_Greedy, gd_OptimalBenchmark, uav_osl, uav_Random, uav_Greedy, uav_OptimalBenchmark = run_simulation(m, T)
         for ii in range(len(gd_osl)):
             performanceOfGDsInOSLperRun[ii + 1].append(gd_osl[ii])
-            performanceOfGDsUAVsOnlyPerRun[ii + 1].append(gd_UAVsOnly[ii])
-            performanceOfGDsChannelGainBasedPerRun[ii + 1].append(gd_ChannelGainBased[ii])
+            performanceOfGDsRandomPerRun[ii + 1].append(gd_Random[ii])
+            performanceOfGDsGreedyPerRun[ii + 1].append(gd_Greedy[ii])
+            performanceOfGDsOptimalBenchmarkPerRun[ii + 1].append(gd_OptimalBenchmark[ii])
             performanceOfUAVsInOSLperRun[ii + 1].append(uav_osl[ii])
-            performanceOfUAVsUAVsOnlyPerRun[ii + 1].append(uav_UAVsOnly[ii])
-            performanceOfUAVsChannelGainBasedPerRun[ii + 1].append(uav_ChannelGainBased[ii])
+            performanceOfUAVsRandomPerRun[ii + 1].append(uav_Random[ii])
+            performanceOfUAVsGreedyPerRun[ii + 1].append(uav_Greedy[ii])
+            performanceOfUAVsOptimalBenchmarkPerRun[ii + 1].append(uav_OptimalBenchmark[ii])
 
-
-
-    for key in performanceOfGDsInOSLperRun:
-        if performanceOfGDsInOSLperRun[key]:
-            meanPerformanceGDsOSL[key] = np.mean(performanceOfGDsInOSLperRun[key])
-        else:
-            meanPerformanceGDsOSL[key] = 0
-
-    for key in performanceOfGDsUAVsOnlyPerRun:
-        if performanceOfGDsUAVsOnlyPerRun[key]:
-            meanPerformanceGDsUAVsOnly[key] = np.mean(performanceOfGDsUAVsOnlyPerRun[key])
-        else:
-            meanPerformanceGDsUAVsOnly[key] = 0
-
-    for key in performanceOfGDsChannelGainBasedPerRun:
-        if performanceOfGDsChannelGainBasedPerRun[key]:
-            meanPerformanceGDsChannelGainBased[key] = np.mean(performanceOfGDsChannelGainBasedPerRun[key])
-        else:
-            meanPerformanceGDsChannelGainBased[key] = 0
-
-    for key in performanceOfUAVsInOSLperRun:
-        if performanceOfUAVsInOSLperRun[key]:
-            meanPerformanceUAVsOSL[key] = np.mean(performanceOfUAVsInOSLperRun[key])
-        else:
-            meanPerformanceUAVsOSL[key] = 0
-
-    for key in performanceOfUAVsUAVsOnlyPerRun:
-        if performanceOfUAVsUAVsOnlyPerRun[key]:
-            meanPerformanceUAVsUAVsOnly[key] = np.mean(performanceOfUAVsUAVsOnlyPerRun[key])
-        else:
-            meanPerformanceUAVsUAVsOnly[key] = 0
-
-    for key in performanceOfUAVsChannelGainBasedPerRun:
-        if performanceOfUAVsChannelGainBasedPerRun[key]:
-            meanPerformanceUAVsChannelGainBased[key] = np.mean(performanceOfUAVsChannelGainBasedPerRun[key])
-        else:
-            meanPerformanceUAVsChannelGainBased[key] = 0
-
+    meanPerformanceGDsOSL = averageResults(performanceOfGDsInOSLperRun, meanPerformanceGDsOSL)
+    meanPerformanceGDsRandom = averageResults(performanceOfGDsRandomPerRun, meanPerformanceGDsRandom)
+    meanPerformanceGDsGreedy = averageResults( performanceOfGDsGreedyPerRun, meanPerformanceGDsGreedy)
+    meanPerformanceGDsOptimalBenchmark = averageResults( performanceOfGDsOptimalBenchmarkPerRun, meanPerformanceGDsOptimalBenchmark)
+    meanPerformanceUAVsOSL = averageResults(performanceOfUAVsInOSLperRun, meanPerformanceUAVsOSL)
+    meanPerformanceUAVsRandom = averageResults(performanceOfUAVsRandomPerRun, meanPerformanceUAVsRandom)
+    meanPerformanceUAVsGreedy = averageResults(performanceOfUAVsGreedyPerRun, meanPerformanceUAVsGreedy)
+    meanPerformanceUAVsOptimalBenchmark = averageResults(performanceOfUAVsOptimalBenchmarkPerRun, meanPerformanceUAVsOptimalBenchmark)
 
 
 
     plt.figure()
-    plt.plot(meanPerformanceGDsOSL.keys(), meanPerformanceGDsOSL.values(), linestyle='-', color='r', label = 'OSL')
-    plt.plot(meanPerformanceGDsUAVsOnly.keys(), meanPerformanceGDsUAVsOnly.values(), linestyle='-', color='b', label='UAVsOnly')
-    plt.plot(meanPerformanceGDsChannelGainBased.keys(), meanPerformanceGDsChannelGainBased.values(), linestyle='-', color='g', label='ChannelGainBased')
+    plt.plot(meanPerformanceGDsOSL.keys(), meanPerformanceGDsOSL.values(), linestyle='-', color='r', label='OSL')
+    plt.plot(meanPerformanceGDsRandom.keys(), meanPerformanceGDsRandom.values(), linestyle='-', color='b', label='Random')
+    plt.plot(meanPerformanceGDsGreedy.keys(), meanPerformanceGDsGreedy.values(), linestyle='-', color='g', label='Greedy')
+    plt.plot(meanPerformanceGDsOptimalBenchmark.keys(), meanPerformanceGDsOptimalBenchmark.values(), linestyle='-', color='m', label='OptimalBenchmark')
 
-    # Add titles and labels
     plt.title('Utility of GDs over Time')
     plt.xlabel('Timestep')
     plt.ylabel('Utility')
-
-    # Show the plot
     plt.grid(True)
     plt.legend()
     plt.show()
 
     plt.figure()
     plt.plot(meanPerformanceUAVsOSL.keys(), meanPerformanceUAVsOSL.values(), linestyle='-', color='r', label='OSL')
-    plt.plot(meanPerformanceUAVsUAVsOnly.keys(), meanPerformanceUAVsUAVsOnly.values(), linestyle='-', color='b', label='UAVsOnly')
-    plt.plot(meanPerformanceUAVsChannelGainBased.keys(), meanPerformanceUAVsChannelGainBased.values(), linestyle='-', color='g', label='ChannelGainBased')
+    plt.plot(meanPerformanceUAVsRandom.keys(), meanPerformanceUAVsRandom.values(), linestyle='-', color='b', label='Random')
+    plt.plot(meanPerformanceUAVsGreedy.keys(), meanPerformanceUAVsGreedy.values(), linestyle='-', color='g', label='Greedy')
+    plt.plot(meanPerformanceUAVsOptimalBenchmark.keys(), meanPerformanceUAVsOptimalBenchmark.values(), linestyle='-', color='m', label='OptimalBenchmark')
 
-    # Add titles and labels
     plt.title('Utility of UAVs over Time')
     plt.xlabel('Timestep')
     plt.ylabel('Utility')
-
-    # Show the plot
     plt.grid(True)
     plt.legend()
     plt.show()
